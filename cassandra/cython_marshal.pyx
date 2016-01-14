@@ -63,6 +63,26 @@ cdef inline num_t unpack_num(Buffer *buf, num_t *dummy=NULL): # dummy pointer be
 
     return ret
 
+ctypedef fused int_t:
+    int64_t
+    int32_t
+    int16_t
+    int8_t
+    uint64_t
+    uint32_t
+    uint16_t
+    uint8_t
+
+cdef inline int_t unpack_int(Buffer *buf, int_t *dummy=NULL): # dummy pointer because cython wants the fused type as an arg
+    cdef char *src = buf_read(buf, sizeof(int_t))
+    cdef int_t ret = 0
+
+    cdef Py_ssize_t i
+    for i in range(sizeof(int_t)):
+        ret |= (src[sizeof(int_t) - i - 1] << (i * 8))
+
+    return ret
+
 cdef varint_unpack(Buffer *term):
     """Unpack a variable-sized integer"""
     if PY3:

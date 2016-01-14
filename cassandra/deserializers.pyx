@@ -53,7 +53,7 @@ cdef class DesDecimalType(Deserializer):
         cdef Buffer varint_buf
         slice_buffer(buf, &varint_buf, 4, buf.size - 4)
 
-        scale = unpack_num[int32_t](buf)
+        scale = unpack_int[int32_t](buf)
         unscaled = varint_unpack(&varint_buf)
 
         return Decimal('%de%d' % (unscaled, -scale))
@@ -66,14 +66,14 @@ cdef class DesUUIDType(Deserializer):
 
 cdef class DesBooleanType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        if unpack_num[int8_t](buf):
+        if unpack_int[int8_t](buf):
             return True
         return False
 
 
 cdef class DesByteType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return unpack_num[int8_t](buf)
+        return unpack_int[int8_t](buf)
 
 
 cdef class DesAsciiType(Deserializer):
@@ -85,22 +85,32 @@ cdef class DesAsciiType(Deserializer):
 
 cdef class DesFloatType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return unpack_num[float](buf)
+        cdef float f;
+        cdef int32_t i = unpack_int[int32_t](buf)
+        cdef char *dst = <char*> &f
+        cdef char *src = <char*> &i
+        memcopy(dst, src, sizeof(int32_t))
+        return f
 
 
 cdef class DesDoubleType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return unpack_num[double](buf)
+        cdef double d;
+        cdef int64_t i = unpack_int[int64_t](buf)
+        cdef char *dst = <char*> &d
+        cdef char *src = <char*> &i
+        memcopy(dst, src, sizeof(int32_t))
+        return d
 
 
 cdef class DesLongType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return unpack_num[int64_t](buf)
+        return unpack_int[int64_t](buf)
 
 
 cdef class DesInt32Type(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return unpack_num[int32_t](buf)
+        return unpack_int[int32_t](buf)
 
 
 cdef class DesIntegerType(Deserializer):
@@ -127,7 +137,7 @@ cdef class DesCounterColumnType(DesLongType):
 
 cdef class DesDateType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        cdef double timestamp = unpack_num[int64_t](buf) / 1000.0
+        cdef double timestamp = unpack_int[int64_t](buf) / 1000.0
         return datetime_from_timestamp(timestamp)
 
 
@@ -147,18 +157,18 @@ EPOCH_OFFSET_DAYS = 2 ** 31
 
 cdef class DesSimpleDateType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        days = unpack_num[uint32_t](buf) - EPOCH_OFFSET_DAYS
+        days = unpack_int[uint32_t](buf) - EPOCH_OFFSET_DAYS
         return util.Date(days)
 
 
 cdef class DesShortType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return unpack_num[int16_t](buf)
+        return unpack_int[int16_t](buf)
 
 
 cdef class DesTimeType(Deserializer):
     cdef deserialize(self, Buffer *buf, int protocol_version):
-        return util.Time(unpack_num[int64_t](buf))
+        return util.Time(unpack_int[int64_t](buf))
 
 
 cdef class DesUTF8Type(Deserializer):
@@ -273,9 +283,9 @@ cdef int _unpack_len(itemlen_t idx, itemlen_t *elemlen, Buffer *buf) except -1:
     slice_buffer(buf, &itemlen_buf, idx, sizeof(itemlen_t))
 
     if itemlen_t is uint16_t:
-        elemlen[0] = unpack_num[uint16_t](&itemlen_buf)
+        elemlen[0] = unpack_int[uint16_t](&itemlen_buf)
     else:
-        elemlen[0] = unpack_num[int32_t](&itemlen_buf)
+        elemlen[0] = unpack_int[int32_t](&itemlen_buf)
 
     return 0
 
@@ -359,7 +369,7 @@ cdef class DesTupleType(_DesParameterizedType):
             item = None
             if p < buf.size:
                 slice_buffer(buf, &itemlen_buf, p, 4)
-                itemlen = unpack_num[int32_t](&itemlen_buf)
+                itemlen = unpack_int[int32_t](&itemlen_buf)
                 p += 4
                 if itemlen >= 0:
                     slice_buffer(buf, &item_buf, p, itemlen)
@@ -407,7 +417,7 @@ cdef class DesCompositeType(_DesParameterizedType):
                 res = res[:i]
                 break
 
-            element_length = unpack_num[uint16_t](buf)
+            element_length = unpack_int[uint16_t](buf)
             slice_buffer(buf, &elem_buf, 2, element_length)
 
             deserializer = self.deserializers[i]
